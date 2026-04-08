@@ -6,6 +6,20 @@
     <title>You eSports — The Pinnacle of Esports</title>
     <meta name="description" content="You eSports — India's professional esports organization. BGMI & Valorant rosters. Join the kingdom." />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>" />
+    <script>
+      (function redirectGithubPagesRootToDist() {
+        var isGithubPages = location.hostname.endsWith("github.io");
+        if (!isGithubPages) return;
+
+        var parts = location.pathname.split("/").filter(Boolean);
+        if (parts.length !== 1) return;
+
+        var repoRoot = "/" + parts[0];
+        if (location.pathname === repoRoot || location.pathname === repoRoot + "/") {
+          location.replace(repoRoot + "/dist/");
+        }
+      })();
+    </script>
     <script type="module" crossorigin src="./assets/index-C_dgSQxr.js"></script>
   </head>
   <body>
