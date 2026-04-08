@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
+const fs = require("fs");
+const path = require("path");
 
 dotenv.config({ path: ".env.server" });
 dotenv.config();
@@ -10,6 +12,8 @@ const app = express();
 const PORT = Number(process.env.ADMIN_API_PORT || 8787);
 const ADMIN_PASS = process.env.ADMIN_PASS || "";
 const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "change-this-admin-jwt-secret";
+const FRONTEND_DIST_DIR = path.resolve(__dirname, "..", "dist");
+const FRONTEND_INDEX_FILE = path.join(FRONTEND_DIST_DIR, "index.html");
 
 const allowedOrigins = (process.env.ADMIN_ALLOWED_ORIGINS || "http://localhost:5173,http://127.0.0.1:5173")
   .split(",")
@@ -74,6 +78,15 @@ app.get("/api/admin/verify", requireAdmin, (_req, res) => {
   res.json({ ok: true });
 });
 
+if (fs.existsSync(FRONTEND_INDEX_FILE)) {
+  app.use(express.static(FRONTEND_DIST_DIR));
+
+  // Serve SPA entry for any non-API route so domain visits always load the app.
+  app.get(/^\/(?!api(?:\/|$)).*/, (_req, res) => {
+    res.sendFile(FRONTEND_INDEX_FILE);
+  });
+}
+
 app.listen(PORT, () => {
   console.log(`[admin-api] running on http://localhost:${PORT}`);
   if (!ADMIN_PASS) {
@@ -81,5 +94,8 @@ app.listen(PORT, () => {
   }
   if (ADMIN_JWT_SECRET === "change-this-admin-jwt-secret") {
     console.warn("[admin-api] ADMIN_JWT_SECRET uses default value. Set a long random secret in .env.server.");
+  }
+  if (!fs.existsSync(FRONTEND_INDEX_FILE)) {
+    console.warn("[admin-api] dist/index.html not found. Run npm run build to serve website pages from this server.");
   }
 });
