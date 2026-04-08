@@ -11,6 +11,23 @@ Open http://localhost:5173 in your browser.
 
 ---
 
+## 📧 Contact Form (Auto Send)
+
+The Reach Out form now sends in the background using EmailJS (no FormSubmit activation email flow).
+
+1. Copy `.env.example` to `.env`
+2. Add your EmailJS values:
+
+```bash
+VITE_EMAILJS_SERVICE_ID=your_emailjs_service_id
+VITE_EMAILJS_TEMPLATE_ID=your_emailjs_template_id
+VITE_EMAILJS_PUBLIC_KEY=your_emailjs_public_key
+```
+
+3. Restart `npm run dev`
+
+---
+
 ## 📦 Build for Production
 
 ```bash
