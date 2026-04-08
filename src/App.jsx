@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 
 const RED = "#e02020";
 const RED_DARK = "#a00000";
+const CONTACT_EMAIL = "youesportsmail@gmail.com";
+const CONTACT_ENDPOINT = `https://formsubmit.co/ajax/${CONTACT_EMAIL}`;
 
 const SOCIAL_LINKS = [
   { label: "D", href: "https://discord.gg/hH7gfXsDuq", name: "Discord" },
@@ -542,7 +544,11 @@ const style = `
     transition: box-shadow 0.2s;
   }
   .send-btn:hover { box-shadow: 0 0 48px rgba(200,0,0,0.4); }
+  .send-btn:disabled { opacity: 0.65; cursor: not-allowed; box-shadow: none; }
   .form-note { font-size: 11px; color: rgba(255,255,255,0.18); text-align: center; }
+  .form-status { font-size: 11px; text-align: center; margin-top: 2px; }
+  .form-status.success { color: #00c878; }
+  .form-status.error { color: #ff6b6b; }
   .resp-badge {
     display: flex; align-items: center; gap: 12px;
     padding: 13px 17px; border-radius: 10px;
@@ -878,7 +884,15 @@ export default function YouEsports() {
   const [activeDept, setActiveDept] = useState(0);
   const [activeNav, setActiveNav] = useState("home");
   const [activeGame, setActiveGame] = useState("BGMI");
-  const [subject, setSubject] = useState("");
+  const [contactForm, setContactForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    subject: "",
+    message: "",
+  });
+  const [contactSending, setContactSending] = useState(false);
+  const [contactStatus, setContactStatus] = useState({ type: "", message: "" });
 
   // Admin state
   const [adminOpen, setAdminOpen] = useState(false);
@@ -966,7 +980,61 @@ export default function YouEsports() {
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
-  const handleDeptClick = (i) => { setActiveDept(i); setSubject(depts[i].title); };
+  const handleDeptClick = (i) => {
+    const deptTitle = depts[i].title;
+    setActiveDept(i);
+    setContactForm(prev => ({ ...prev, subject: deptTitle }));
+  };
+
+  const handleContactChange = (field, value) => {
+    setContactForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+
+    if (contactSending) return;
+
+    const subjectLine = (contactForm.subject || depts[activeDept]?.title || "Website Inquiry").trim();
+    const payload = {
+      _subject: subjectLine,
+      name: contactForm.name.trim(),
+      email: contactForm.email.trim(),
+      phone: contactForm.phone.trim(),
+      department: depts[activeDept]?.title || "GENERAL",
+      message: contactForm.message.trim(),
+      _captcha: "false",
+    };
+
+    setContactSending(true);
+    setContactStatus({ type: "", message: "" });
+
+    try {
+      const res = await fetch(CONTACT_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error(`Contact request failed (${res.status})`);
+
+      setContactStatus({ type: "success", message: "Message sent successfully. We will get back to you shortly." });
+      setContactForm({
+        name: "",
+        email: "",
+        phone: "",
+        subject: depts[activeDept]?.title || "",
+        message: "",
+      });
+    } catch {
+      setContactStatus({ type: "error", message: "Could not send right now. Please try again in a moment." });
+    } finally {
+      setContactSending(false);
+    }
+  };
   const players = roster[activeGame];
 
   /* ── Shared card renderer ── */
@@ -1316,21 +1384,58 @@ export default function YouEsports() {
             </div>
           </div>
 
-          <div className="form-grid">
+          <form className="form-grid" onSubmit={handleContactSubmit}>
             <div className="form-row">
-              <input className="finput" type="text" placeholder="Your name" />
-              <input className="finput" type="email" placeholder="you@example.com" />
+              <input
+                className="finput"
+                type="text"
+                placeholder="Your name"
+                value={contactForm.name}
+                onChange={e => handleContactChange("name", e.target.value)}
+                required
+              />
+              <input
+                className="finput"
+                type="email"
+                placeholder="you@example.com"
+                value={contactForm.email}
+                onChange={e => handleContactChange("email", e.target.value)}
+                required
+              />
             </div>
             <div className="form-row">
-              <input className="finput" type="tel" placeholder="+91 00000 00000" />
-              <input className="finput" type="text" placeholder="Brief subject line" value={subject} onChange={e => setSubject(e.target.value)} />
+              <input
+                className="finput"
+                type="tel"
+                placeholder="+91 00000 00000"
+                value={contactForm.phone}
+                onChange={e => handleContactChange("phone", e.target.value)}
+              />
+              <input
+                className="finput"
+                type="text"
+                placeholder="Brief subject line"
+                value={contactForm.subject}
+                onChange={e => handleContactChange("subject", e.target.value)}
+              />
             </div>
-            <textarea className="finput" placeholder="Tell us about your inquiry in detail..." />
-            <button className="send-btn">→ SEND MESSAGE</button>
+            <textarea
+              className="finput"
+              placeholder="Tell us about your inquiry in detail..."
+              value={contactForm.message}
+              onChange={e => handleContactChange("message", e.target.value)}
+              required
+            />
+            <button className="send-btn" type="submit" disabled={contactSending}>
+              {contactSending ? "→ SENDING..." : "→ SEND MESSAGE"}
+            </button>
+            {contactStatus.message && (
+              <p className={`form-status ${contactStatus.type}`}>{contactStatus.message}</p>
+            )}
             <p className="form-note">
               By submitting this form, you agree that we may store and process your data to respond to your inquiry.
             </p>
-          </div>
+          </form>
         </div>
       </section>
 
