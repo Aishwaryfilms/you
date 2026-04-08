@@ -140,6 +140,18 @@ Deploy the generated `dist/` folder to:
 - Netlify
 - Any static hosting provider
 
+### GitHub Pages (Important)
+
+This repo includes an automated workflow at `.github/workflows/deploy-pages.yml` that builds and deploys `dist`.
+
+Use these settings in GitHub:
+
+1. Go to `Settings -> Pages`
+2. Set `Source` to `GitHub Actions` (not `Deploy from branch`)
+3. Push to `main` and wait for the `Deploy GitHub Pages` workflow to finish
+
+If you deploy directly from the repository root, GitHub serves raw `src/main.jsx` (uncompiled JSX), which causes a white screen.
+
 ## Troubleshooting
 
 - If form submits but no email arrives, check spam/junk and confirm the destination address in `src/App.jsx`.
