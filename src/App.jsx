@@ -3,10 +3,7 @@ import { useState, useEffect } from "react";
 const RED = "#e02020";
 const RED_DARK = "#a00000";
 const CONTACT_EMAIL = "youesportsmail@gmail.com";
-const EMAILJS_ENDPOINT = "https://api.emailjs.com/api/v1.0/email/send";
-const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+const CONTACT_ENDPOINT = `https://formsubmit.co/ajax/${CONTACT_EMAIL}`;
 
 const SOCIAL_LINKS = [
   { label: "D", href: "https://discord.gg/hH7gfXsDuq", name: "Discord" },
@@ -998,35 +995,27 @@ export default function YouEsports() {
 
     if (contactSending) return;
 
-    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
-      setContactStatus({ type: "error", message: "Contact form is not configured yet. Add EmailJS keys and try again." });
-      return;
-    }
-
     const subjectLine = (contactForm.subject || depts[activeDept]?.title || "Website Inquiry").trim();
     const payload = {
-      service_id: EMAILJS_SERVICE_ID,
-      template_id: EMAILJS_TEMPLATE_ID,
-      user_id: EMAILJS_PUBLIC_KEY,
-      template_params: {
-        to_email: CONTACT_EMAIL,
-        subject: subjectLine,
-        from_name: contactForm.name.trim(),
-        from_email: contactForm.email.trim(),
-        reply_to: contactForm.email.trim(),
-        phone: contactForm.phone.trim() || "Not provided",
-        department: depts[activeDept]?.title || "GENERAL",
-        message: contactForm.message.trim(),
-      },
+      _subject: subjectLine,
+      name: contactForm.name.trim(),
+      email: contactForm.email.trim(),
+      phone: contactForm.phone.trim() || "Not provided",
+      department: depts[activeDept]?.title || "GENERAL",
+      message: contactForm.message.trim(),
+      _captcha: "false",
     };
 
     setContactSending(true);
     setContactStatus({ type: "", message: "" });
 
     try {
-      const res = await fetch(EMAILJS_ENDPOINT, {
+      const res = await fetch(CONTACT_ENDPOINT, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify(payload),
       });
 

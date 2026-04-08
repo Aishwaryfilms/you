@@ -1,69 +1,108 @@
-# You eSports — Website
+# You eSports Website
 
-## 🚀 Quick Start
+A single-page React + Vite website for You eSports with:
+
+- Hero, About, Roster, Creators, Merch, and Reach Out sections
+- Built-in admin overlay for editing roster/creator content in the UI
+- Background contact form delivery to `youesportsmail@gmail.com`
+
+## Tech Stack
+
+- React 18
+- Vite 5
+- Plain CSS embedded in `src/App.jsx`
+
+## Requirements
+
+- Node.js 18+
+- npm 9+
+
+## Quick Start
+
+1. Install dependencies:
 
 ```bash
 npm install
+```
+
+2. Start development server:
+
+```bash
 npm run dev
 ```
 
-Open http://localhost:5173 in your browser.
+3. Open:
 
----
+http://localhost:5173
 
-## 📧 Contact Form (Auto Send)
-
-The Reach Out form now sends in the background using EmailJS (no FormSubmit activation email flow).
-
-1. Copy `.env.example` to `.env`
-2. Add your EmailJS values:
+## Available Scripts
 
 ```bash
-VITE_EMAILJS_SERVICE_ID=your_emailjs_service_id
-VITE_EMAILJS_TEMPLATE_ID=your_emailjs_template_id
-VITE_EMAILJS_PUBLIC_KEY=your_emailjs_public_key
+npm run dev      # Start dev server
+npm run build    # Build production bundle
+npm run preview  # Preview production build locally
 ```
 
-3. Restart `npm run dev`
+## Contact Form
 
----
+The Reach Out form sends without opening the user's mail app.
 
-## 📦 Build for Production
+Current destination inbox is configured in `src/App.jsx`:
+
+
+- `CONTACT_EMAIL = "youesportsmail@gmail.com"`
+
+Fields sent by the form:
+
+- `subject`
+- `name`
+- `email`
+- `phone`
+- `department`
+- `message`
+
+## Project Structure
+
+```text
+youesports/
+|- index.html
+|- package.json
+|- vite.config.js
+|- src/
+|  |- main.jsx
+|  |- App.jsx
+|- README.md
+```
+
+## Customization Guide
+
+Main editable areas inside `src/App.jsx`:
+
+- `SOCIAL_LINKS` for social buttons
+- `depts` for Reach Out departments
+- `rosterData` for team rosters
+- `creatorsInitial` for creator cards
+- `ADMIN_PASS` for admin panel password (currently hardcoded)
+
+## Build and Deploy
+
+Create production build:
 
 ```bash
 npm run build
 ```
 
-This creates a `dist/` folder — that's your deployable site.
+Deploy the generated `dist/` folder to:
 
----
+- Vercel
+- Netlify
+- Any static hosting provider
 
-## ☁️ Deploy Options
+## Troubleshooting
 
-### Vercel (Recommended — free & instant)
-1. Push this folder to a GitHub repo
-2. Go to https://vercel.com → New Project → Import your repo
-3. Vercel auto-detects Vite — just click Deploy ✅
+- If form submits but no email arrives, check spam/junk and confirm the destination address in `src/App.jsx`.
 
-### Netlify (Also free)
-1. Run `npm run build`
-2. Go to https://app.netlify.com → Sites → Drag & drop the `dist/` folder ✅
+## Notes
 
-### GitHub Pages
-1. Install: `npm install --save-dev gh-pages`
-2. Add to package.json scripts: `"deploy": "gh-pages -d dist"`
-3. Run: `npm run build && npm run deploy` ✅
-
----
-
-## 📁 Project Structure
-
-```
-youesports/
-├── index.html          # HTML entry point
-├── vite.config.js      # Vite config
-├── package.json        # Dependencies
-└── src/
-    ├── main.jsx        # React root
-    └── App.jsx         # Your full site component
-```
+- This project is currently front-end only.
+- Admin authentication is client-side and not secure for production access control.
