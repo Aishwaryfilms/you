@@ -35,8 +35,14 @@ copy .env.server.example .env.server
 3. Set backend admin credentials in `.env.server`:
 
 ```env
-ADMIN_PASS=your_secure_admin_password
+ADMIN_PASS_HASH=scrypt:your_salt_hex:your_hash_base64
 ADMIN_JWT_SECRET=long_random_secret_here
+```
+
+Generate `ADMIN_PASS_HASH` from a password:
+
+```bash
+node -e "const c=require('crypto');const p='YOUR_PASSWORD';const s=c.randomBytes(16).toString('hex');const h=c.scryptSync(p,s,32).toString('base64');console.log('scrypt:'+s+':'+h);"
 ```
 
 4. Start backend API (terminal 1):
@@ -70,7 +76,7 @@ Admin login is now verified on the server, so the password is no longer exposed 
 
 Server config (`.env.server`):
 
-- `ADMIN_PASS`
+- `ADMIN_PASS_HASH`
 - `ADMIN_JWT_SECRET`
 - `ADMIN_API_PORT` (default `8787`)
 - `ADMIN_ALLOWED_ORIGINS` (comma separated)

@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
@@ -10,10 +11,33 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.ADMIN_API_PORT || 8787);
+const ADMIN_PASS_HASH = process.env.ADMIN_PASS_HASH || "";
 const ADMIN_PASS = process.env.ADMIN_PASS || "";
 const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "change-this-admin-jwt-secret";
 const FRONTEND_DIST_DIR = path.resolve(__dirname, "..", "dist");
 const FRONTEND_INDEX_FILE = path.join(FRONTEND_DIST_DIR, "index.html");
+
+function verifyScryptPassword(password, encodedHash) {
+  const parts = encodedHash.split(":");
+  if (parts.length !== 3 || parts[0] !== "scrypt") return false;
+
+  const [, salt, digestB64] = parts;
+  if (!salt || !digestB64) return false;
+
+  try {
+    const expected = Buffer.from(digestB64, "base64");
+    const actual = crypto.scryptSync(password, salt, expected.length);
+    return crypto.timingSafeEqual(actual, expected);
+  } catch {
+    return false;
+  }
+}
+
+function verifyAdminPassword(password) {
+  if (ADMIN_PASS_HASH) return verifyScryptPassword(password, ADMIN_PASS_HASH);
+  if (ADMIN_PASS) return password === ADMIN_PASS;
+  return false;
+}
 
 const allowedOrigins = (process.env.ADMIN_ALLOWED_ORIGINS || "http://localhost:5173,http://127.0.0.1:5173")
   .split(",")
@@ -36,7 +60,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.post("/api/admin/login", (req, res) => {
-  if (!ADMIN_PASS) {
+  if (!ADMIN_PASS_HASH && !ADMIN_PASS) {
     res.status(500).json({ message: "Server admin password is not configured." });
     return;
   }
@@ -48,7 +72,7 @@ app.post("/api/admin/login", (req, res) => {
     return;
   }
 
-  if (password !== ADMIN_PASS) {
+  if (!verifyAdminPassword(password)) {
     res.status(401).json({ message: "Incorrect password. Try again." });
     return;
   }
@@ -89,8 +113,11 @@ if (fs.existsSync(FRONTEND_INDEX_FILE)) {
 
 app.listen(PORT, () => {
   console.log(`[admin-api] running on http://localhost:${PORT}`);
-  if (!ADMIN_PASS) {
-    console.warn("[admin-api] ADMIN_PASS is missing. Set it in .env.server before using admin login.");
+  if (!ADMIN_PASS_HASH && !ADMIN_PASS) {
+    console.warn("[admin-api] ADMIN_PASS_HASH is missing. Set it in .env.server before using admin login.");
+  }
+  if (ADMIN_PASS && !ADMIN_PASS_HASH) {
+    console.warn("[admin-api] Using legacy ADMIN_PASS. Prefer ADMIN_PASS_HASH for secure password storage.");
   }
   if (ADMIN_JWT_SECRET === "change-this-admin-jwt-secret") {
     console.warn("[admin-api] ADMIN_JWT_SECRET uses default value. Set a long random secret in .env.server.");
