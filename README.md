@@ -3,13 +3,14 @@
 A single-page React + Vite website for You eSports with:
 
 - Hero, About, Roster, Creators, Merch, and Reach Out sections
-- Built-in admin overlay for editing roster/creator content in the UI
+- Built-in admin overlay backed by server-side password verification
 - Background contact form delivery to `youesportsmail@gmail.com`
 
 ## Tech Stack
 
 - React 18
 - Vite 5
+- Express API for admin auth
 - Plain CSS embedded in `src/App.jsx`
 
 ## Requirements
@@ -25,13 +26,32 @@ A single-page React + Vite website for You eSports with:
 npm install
 ```
 
-2. Start development server:
+2. Create server env file:
+
+```bash
+copy .env.server.example .env.server
+```
+
+3. Set backend admin credentials in `.env.server`:
+
+```env
+ADMIN_PASS=your_secure_admin_password
+ADMIN_JWT_SECRET=long_random_secret_here
+```
+
+4. Start backend API (terminal 1):
+
+```bash
+npm run server
+```
+
+5. Start frontend dev server (terminal 2):
 
 ```bash
 npm run dev
 ```
 
-3. Open:
+6. Open:
 
 http://localhost:5173
 
@@ -39,9 +59,25 @@ http://localhost:5173
 
 ```bash
 npm run dev      # Start dev server
+npm run server   # Start admin auth backend
 npm run build    # Build production bundle
 npm run preview  # Preview production build locally
 ```
+
+## Admin Auth Backend
+
+Admin login is now verified on the server, so the password is no longer exposed in browser inspect tools.
+
+Server config (`.env.server`):
+
+- `ADMIN_PASS`
+- `ADMIN_JWT_SECRET`
+- `ADMIN_API_PORT` (default `8787`)
+- `ADMIN_ALLOWED_ORIGINS` (comma separated)
+
+Frontend can override API URL with:
+
+- `VITE_ADMIN_API_URL` (defaults to `http://localhost:8787`)
 
 ## Contact Form
 
@@ -65,8 +101,11 @@ Fields sent by the form:
 
 ```text
 youesports/
+|- .env.server.example
 |- index.html
 |- package.json
+|- server/
+|  |- server.js
 |- vite.config.js
 |- src/
 |  |- main.jsx
@@ -82,7 +121,8 @@ Main editable areas inside `src/App.jsx`:
 - `depts` for Reach Out departments
 - `rosterData` for team rosters
 - `creatorsInitial` for creator cards
-- `ADMIN_PASS` for admin panel password (currently hardcoded)
+
+Server-side admin credentials are configured in `.env.server`, not in frontend code.
 
 ## Build and Deploy
 
@@ -101,8 +141,10 @@ Deploy the generated `dist/` folder to:
 ## Troubleshooting
 
 - If form submits but no email arrives, check spam/junk and confirm the destination address in `src/App.jsx`.
+- If admin login fails, verify `.env.server` exists and `npm run server` is running.
+- If admin API is on another host/port, set `VITE_ADMIN_API_URL` in frontend env.
 
 ## Notes
 
-- This project is currently front-end only.
-- Admin authentication is client-side and not secure for production access control.
+- Admin password validation now happens on the backend.
+- Admin-edited roster/creator data is still in-memory on the client unless you add persistence endpoints.

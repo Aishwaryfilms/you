@@ -4,6 +4,10 @@ const RED = "#e02020";
 const RED_DARK = "#a00000";
 const CONTACT_EMAIL = "youesportsmail@gmail.com";
 const CONTACT_ENDPOINT = `https://formsubmit.co/ajax/${CONTACT_EMAIL}`;
+const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || "http://localhost:8787";
+const ADMIN_LOGIN_ENDPOINT = `${ADMIN_API_BASE}/api/admin/login`;
+const ADMIN_VERIFY_ENDPOINT = `${ADMIN_API_BASE}/api/admin/verify`;
+const ADMIN_TOKEN_KEY = "youesports_admin_token";
 
 const SOCIAL_LINKS = [
   { label: "D", href: "https://discord.gg/hH7gfXsDuq", name: "Discord" },
@@ -683,6 +687,7 @@ const adminStyle = `
     font-family: 'Space Mono', monospace;
     font-size: 11px; letter-spacing: 2px; cursor: pointer;
   }
+  .admin-login button:disabled { opacity: 0.65; cursor: not-allowed; }
   .admin-tabs { display: flex; gap: 8px; margin-bottom: 1.4rem; flex-wrap: wrap; }
   .admin-tab {
     font-family: 'Space Mono', monospace;
@@ -805,8 +810,6 @@ const adminStyle = `
 /* ─────────────────────────────────────────────────
    CONSTANTS & DATA
 ───────────────────────────────────────────────── */
-const ADMIN_PASS = "Mypass123!";
-
 const SectionDivider = ({ label }) => (
   <div className="sec-divider" style={{ padding: "0 3rem" }}>
     <div className="sec-divider-line" />
@@ -899,6 +902,7 @@ export default function YouEsports() {
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [adminPass, setAdminPass] = useState("");
   const [adminErr, setAdminErr] = useState("");
+  const [adminLoading, setAdminLoading] = useState(false);
   const [adminTab, setAdminTab] = useState("BGMI");
   const [adminSaved, setAdminSaved] = useState(false);
 
@@ -914,14 +918,83 @@ export default function YouEsports() {
   const [creators, setCreators] = useState(() => creatorsInitial.map(c => ({ ...c })));
 
   /* ── Admin auth ── */
-  const handleAdminLogin = () => {
-    if (adminPass === ADMIN_PASS) { setAdminAuthed(true); setAdminErr(""); }
-    else setAdminErr("Incorrect password. Try again.");
+  const handleAdminLogin = async () => {
+    if (adminLoading) return;
+    if (!adminPass.trim()) {
+      setAdminErr("Enter password to continue.");
+      return;
+    }
+
+    setAdminLoading(true);
+    setAdminErr("");
+
+    try {
+      const res = await fetch(ADMIN_LOGIN_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: adminPass }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.token) {
+        throw new Error(data.message || "Unable to login right now.");
+      }
+
+      sessionStorage.setItem(ADMIN_TOKEN_KEY, data.token);
+      setAdminAuthed(true);
+      setAdminPass("");
+    } catch (err) {
+      setAdminAuthed(false);
+      setAdminErr(err?.message || "Unable to reach admin server.");
+    } finally {
+      setAdminLoading(false);
+    }
   };
+
   const closeAdmin = () => {
     setAdminOpen(false); setAdminAuthed(false);
-    setAdminPass(""); setAdminErr("");
+    setAdminPass(""); setAdminErr(""); setAdminLoading(false);
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
   };
+
+  useEffect(() => {
+    if (!adminOpen) return;
+
+    const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) return;
+
+    let cancelled = false;
+
+    const verifyToken = async () => {
+      setAdminLoading(true);
+      try {
+        const res = await fetch(ADMIN_VERIFY_ENDPOINT, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) throw new Error("Invalid session");
+
+        if (!cancelled) {
+          setAdminAuthed(true);
+          setAdminErr("");
+        }
+      } catch {
+        sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+        if (!cancelled) {
+          setAdminAuthed(false);
+          setAdminErr("");
+        }
+      } finally {
+        if (!cancelled) setAdminLoading(false);
+      }
+    };
+
+    verifyToken();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [adminOpen]);
 
   /* ── Roster helpers ── */
   const updatePlayer = (game, id, field, value) =>
@@ -1106,9 +1179,12 @@ export default function YouEsports() {
                   value={adminPass}
                   onChange={e => setAdminPass(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && handleAdminLogin()}
+                  disabled={adminLoading}
                 />
                 {adminErr && <div className="admin-err">{adminErr}</div>}
-                <button onClick={handleAdminLogin}>UNLOCK →</button>
+                <button onClick={handleAdminLogin} disabled={adminLoading}>
+                  {adminLoading ? "VERIFYING..." : "UNLOCK →"}
+                </button>
               </div>
             ) : (
               <>
