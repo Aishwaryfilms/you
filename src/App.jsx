@@ -4,9 +4,9 @@ const RED = "#e02020";
 const RED_DARK = "#a00000";
 const CONTACT_EMAIL = "youesportsmail@gmail.com";
 const CONTACT_ENDPOINT = `https://formsubmit.co/ajax/${CONTACT_EMAIL}`;
-const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || "http://localhost:8787";
-const ADMIN_LOGIN_ENDPOINT = `${ADMIN_API_BASE}/api/admin/login`;
-const ADMIN_VERIFY_ENDPOINT = `${ADMIN_API_BASE}/api/admin/verify`;
+const ADMIN_API_BASE = (import.meta.env.VITE_ADMIN_API_URL || "").replace(/\/$/, "");
+const ADMIN_LOGIN_ENDPOINT = `${ADMIN_API_BASE || ""}/api/admin/login`;
+const ADMIN_VERIFY_ENDPOINT = `${ADMIN_API_BASE || ""}/api/admin/verify`;
 const ADMIN_TOKEN_KEY = "youesports_admin_token";
 
 const SOCIAL_LINKS = [
@@ -945,7 +945,12 @@ export default function YouEsports() {
       setAdminPass("");
     } catch (err) {
       setAdminAuthed(false);
-      setAdminErr(err?.message || "Unable to reach admin server.");
+      const msg = String(err?.message || "").toLowerCase();
+      if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("network error")) {
+        setAdminErr("Cannot reach admin server. Start npm run server and try again.");
+      } else {
+        setAdminErr(err?.message || "Unable to reach admin server.");
+      }
     } finally {
       setAdminLoading(false);
     }
