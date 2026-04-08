@@ -9,6 +9,21 @@ const ADMIN_LOGIN_ENDPOINT = `${ADMIN_API_BASE || ""}/api/admin/login`;
 const ADMIN_VERIFY_ENDPOINT = `${ADMIN_API_BASE || ""}/api/admin/verify`;
 const ADMIN_TOKEN_KEY = "youesports_admin_token";
 const IS_GITHUB_PAGES = typeof window !== "undefined" && window.location.hostname.endsWith("github.io");
+const STATIC_ADMIN_HASH_SALT = import.meta.env.VITE_ADMIN_HASH_SALT || "youesports-admin-v1";
+const STATIC_ADMIN_PASS_HASH = import.meta.env.VITE_ADMIN_PASS_HASH || "4fc75f292dcde2cc5d9234bf74b2122db99180e1eedb41897cc4d04fea10d18b";
+
+async function sha256Hex(input) {
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function verifyStaticAdminPassword(password) {
+  if (!STATIC_ADMIN_PASS_HASH || !globalThis?.crypto?.subtle) return false;
+  const digest = await sha256Hex(`${password}:${STATIC_ADMIN_HASH_SALT}`);
+  return digest === STATIC_ADMIN_PASS_HASH;
+}
 
 const SOCIAL_LINKS = [
   { label: "D", href: "https://discord.gg/hH7gfXsDuq", name: "Discord" },
@@ -926,15 +941,19 @@ export default function YouEsports() {
       return;
     }
 
-    if (IS_GITHUB_PAGES && !ADMIN_API_BASE) {
-      setAdminErr("Admin login requires a deployed backend API. Set VITE_ADMIN_API_URL to your backend URL.");
-      return;
-    }
-
     setAdminLoading(true);
     setAdminErr("");
 
     try {
+      if (IS_GITHUB_PAGES && !ADMIN_API_BASE) {
+        const valid = await verifyStaticAdminPassword(adminPass);
+        if (!valid) throw new Error("Incorrect password. Try again.");
+
+        setAdminAuthed(true);
+        setAdminPass("");
+        return;
+      }
+
       const res = await fetch(ADMIN_LOGIN_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
