@@ -8,6 +8,7 @@ const ADMIN_API_BASE = (import.meta.env.VITE_ADMIN_API_URL || "").replace(/\/$/,
 const ADMIN_LOGIN_ENDPOINT = `${ADMIN_API_BASE || ""}/api/admin/login`;
 const ADMIN_VERIFY_ENDPOINT = `${ADMIN_API_BASE || ""}/api/admin/verify`;
 const ADMIN_TOKEN_KEY = "youesports_admin_token";
+const IS_GITHUB_PAGES = typeof window !== "undefined" && window.location.hostname.endsWith("github.io");
 
 const SOCIAL_LINKS = [
   { label: "D", href: "https://discord.gg/hH7gfXsDuq", name: "Discord" },
@@ -925,6 +926,11 @@ export default function YouEsports() {
       return;
     }
 
+    if (IS_GITHUB_PAGES && !ADMIN_API_BASE) {
+      setAdminErr("Admin login requires a deployed backend API. Set VITE_ADMIN_API_URL to your backend URL.");
+      return;
+    }
+
     setAdminLoading(true);
     setAdminErr("");
 
@@ -934,10 +940,20 @@ export default function YouEsports() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: adminPass }),
       });
-      const data = await res.json().catch(() => ({}));
+
+      const contentType = res.headers.get("content-type") || "";
+      const data = contentType.includes("application/json")
+        ? await res.json().catch(() => ({}))
+        : {};
 
       if (!res.ok || !data.token) {
-        throw new Error(data.message || "Unable to login right now.");
+        if (res.status === 404) {
+          throw new Error("Admin API route not found. Configure VITE_ADMIN_API_URL to a running backend.");
+        }
+        if (res.status >= 500) {
+          throw new Error(data.message || "Admin server error. Check backend logs and env config.");
+        }
+        throw new Error(data.message || "Admin login failed. Verify API URL and password.");
       }
 
       sessionStorage.setItem(ADMIN_TOKEN_KEY, data.token);

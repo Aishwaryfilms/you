@@ -79,6 +79,8 @@ Frontend can override API URL with:
 
 - `VITE_ADMIN_API_URL` (defaults to `http://localhost:8787`)
 
+For GitHub Pages, you must set `VITE_ADMIN_API_URL` to a deployed backend (Render/Railway/etc). Static Pages hosting does not provide `/api/admin/*` routes.
+
 By default during local dev, admin API calls use `/api/*` and are proxied by Vite to `http://localhost:8787`.
 
 ## Contact Form
@@ -156,6 +158,7 @@ If you deploy directly from the repository root, GitHub serves raw `src/main.jsx
 
 - If form submits but no email arrives, check spam/junk and confirm the destination address in `src/App.jsx`.
 - If admin login fails, verify `.env.server` exists and `npm run server` is running.
+- If you see `Unable to login right now.` or `Admin API route not found`, your frontend cannot reach backend `/api/admin/login`. Set `VITE_ADMIN_API_URL` to your deployed API URL.
 - If you see Failed to fetch on admin login, start backend with `npm run server` and restart `npm run dev`.
 - If admin API is on another host/port, set `VITE_ADMIN_API_URL` in frontend env.
 
