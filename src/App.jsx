@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from "./supabaseClient";
 
 const RED = "#e02020";
 const RED_DARK = "#a00000";
@@ -844,7 +845,7 @@ const depts = [
   { title: "FEEDBACK", desc: "Suggestions & ideas" },
 ];
 
-const rosterData = {
+const rosterDataFallback = {
   BGMI: [
     { id: 1, num: "01", name: "ClutchGod", real: "Vivek Aabhas Horo", role: "ASSAULTER", featured: true, img: null },
     { id: 2, num: "02", name: "Shadow", real: "Arjun Mandhalkar", role: "IGL", featured: false, img: null },
@@ -856,7 +857,7 @@ const rosterData = {
   ],
 };
 
-const creatorsInitial = [
+const creatorsInitialFallback = [
   { id: 101, num: "01", name: "Creator One", handle: "@creatorone", platform: "YouTube", type: "GAMEPLAY", featured: true, img: null },
   { id: 102, num: "02", name: "Creator Two", handle: "@creatortwo", platform: "Instagram", type: "HIGHLIGHTS", featured: false, img: null },
 ];
@@ -925,13 +926,72 @@ export default function YouEsports() {
   // Editable data
   const [roster, setRoster] = useState(() =>
     Object.fromEntries(
-      Object.entries(rosterData).map(([game, players]) => [
+      Object.entries(rosterDataFallback).map(([game, players]) => [
         game,
         players.map(p => ({ ...p }))
       ])
     )
   );
-  const [creators, setCreators] = useState(() => creatorsInitial.map(c => ({ ...c })));
+  const [creators, setCreators] = useState(() => creatorsInitialFallback.map(c => ({ ...c })));
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  /* ── Load data from Supabase on mount ── */
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load roster players
+        const { data: playersData, error: playersErr } = await supabase
+          .from("roster_players")
+          .select("*")
+          .order("num", { ascending: true });
+
+        if (!playersErr && playersData && playersData.length > 0) {
+          const grouped = {};
+          playersData.forEach(p => {
+            const game = p.game || "BGMI";
+            if (!grouped[game]) grouped[game] = [];
+            grouped[game].push({
+              id: p.id,
+              num: p.num || String(grouped[game].length + 1).padStart(2, "0"),
+              name: p.name || "Player",
+              real: p.real || "",
+              role: p.role || "ROLE",
+              featured: p.featured || false,
+              img: p.img || null,
+            });
+          });
+          // Ensure all default games exist
+          if (!grouped.BGMI) grouped.BGMI = [];
+          if (!grouped.Valorant) grouped.Valorant = [];
+          setRoster(grouped);
+        }
+
+        // Load creators
+        const { data: creatorsData, error: creatorsErr } = await supabase
+          .from("creators")
+          .select("*")
+          .order("num", { ascending: true });
+
+        if (!creatorsErr && creatorsData && creatorsData.length > 0) {
+          setCreators(creatorsData.map(c => ({
+            id: c.id,
+            num: c.num || "01",
+            name: c.name || "Creator",
+            handle: c.handle || "",
+            platform: c.platform || "YouTube",
+            type: c.type || "CONTENT CREATOR",
+            featured: c.featured || false,
+            img: c.img || null,
+          })));
+        }
+      } catch (err) {
+        console.warn("Supabase load failed, using fallback data:", err);
+      } finally {
+        setDataLoaded(true);
+      }
+    };
+    loadData();
+  }, []);
 
   /* ── Admin auth ── */
   const handleAdminLogin = async () => {
@@ -1075,9 +1135,73 @@ export default function YouEsports() {
       prev.filter(c => c.id !== id).map((c, i) => ({ ...c, num: String(i + 1).padStart(2, "0") }))
     );
 
-  const handleAdminSave = () => {
-    setAdminSaved(true);
-    setTimeout(() => setAdminSaved(false), 2500);
+  const handleAdminSave = async () => {
+    setAdminLoading(true);
+    try {
+      // Save roster: delete all then re-insert
+      await supabase.from("roster_players").delete().neq("id", 0);
+      const allPlayers = [];
+      for (const [game, players] of Object.entries(roster)) {
+        players.forEach(p => {
+          allPlayers.push({
+            name: p.name,
+            real: p.real,
+            role: p.role,
+            num: p.num,
+            featured: p.featured,
+            img: p.img,
+            game,
+          });
+        });
+      }
+      if (allPlayers.length > 0) {
+        const { error: rosterErr } = await supabase.from("roster_players").insert(allPlayers);
+        if (rosterErr) throw rosterErr;
+      }
+
+      // Save creators: delete all then re-insert
+      await supabase.from("creators").delete().neq("id", 0);
+      const allCreators = creators.map(c => ({
+        name: c.name,
+        handle: c.handle,
+        platform: c.platform,
+        type: c.type,
+        num: c.num,
+        featured: c.featured,
+        img: c.img,
+      }));
+      if (allCreators.length > 0) {
+        const { error: creatorsErr } = await supabase.from("creators").insert(allCreators);
+        if (creatorsErr) throw creatorsErr;
+      }
+
+      setAdminSaved(true);
+      setTimeout(() => setAdminSaved(false), 2500);
+
+      // Reload data to get new IDs from Supabase
+      const { data: freshPlayers } = await supabase.from("roster_players").select("*").order("num", { ascending: true });
+      if (freshPlayers) {
+        const grouped = {};
+        freshPlayers.forEach(p => {
+          const game = p.game || "BGMI";
+          if (!grouped[game]) grouped[game] = [];
+          grouped[game].push({ id: p.id, num: p.num, name: p.name, real: p.real, role: p.role, featured: p.featured, img: p.img });
+        });
+        if (!grouped.BGMI) grouped.BGMI = [];
+        if (!grouped.Valorant) grouped.Valorant = [];
+        setRoster(grouped);
+      }
+      const { data: freshCreators } = await supabase.from("creators").select("*").order("num", { ascending: true });
+      if (freshCreators) {
+        setCreators(freshCreators.map(c => ({ id: c.id, num: c.num, name: c.name, handle: c.handle, platform: c.platform, type: c.type, featured: c.featured, img: c.img })));
+      }
+    } catch (err) {
+      console.error("Save failed:", err);
+      setAdminErr("Failed to save to database. Check console for details.");
+      setTimeout(() => setAdminErr(""), 4000);
+    } finally {
+      setAdminLoading(false);
+    }
   };
 
   /* ── Scroll nav highlight ── */
@@ -1348,25 +1472,24 @@ export default function YouEsports() {
         </div>
       </section>
 
-      <SectionDivider label="ORIGINS · 起源" />
+      <SectionDivider label="THE STORY · 物語" />
 
       {/* ABOUT */}
       <section id="about">
         <div className="about-inner">
           <div>
-            <div className="sec-label">ORIGINS · 起源</div>
+            <div className="sec-label">THE STORY · 物語</div>
             <h2 className="sec-h2" style={{ fontSize: "clamp(36px,5vw,58px)" }}>
-              BORN TO RULE<br /><span className="red">THE BATTLEGROUND.</span>
+              THE<br /><span className="red">STORY.</span>
             </h2>
             <p className="about-body">
-              You eSports is a professional esports organization built on raw talent, fearless strategy and an unshakable will to rule the battleground.<br /><br />
-              Founded by Vivek Aabhas Horo (ClutchGod), who lives for the rush of competition. You eSports isn't just a name — it's a mindset.<br /><br />
-              Our mission is to dominate the competitive scene, inspire the community and prove that true kings are made through dedication and teamwork. Victory isn't given — it's taken. We are You eSports.
+              Founded in 2021 by Suyash "Yunay" Kandalgaonkar and operational since 2023, YOU esports is built on the belief that every gamer deserves a chance to shine. We bridge the gap between elite competition and community entertainment, fielding powerhouse esports rosters while supporting a diverse team of content creators.<br /><br />
+              At our core, we are more than just an organization; we are a collective dedicated to helping players and fans grow together, ensuring that everyone has a path to involve themselves in the future of esports.
             </p>
           </div>
           <div className="quote-card">
             <div className="quote-mark">"</div>
-            <p className="quote-text">Victory isn't given — it's taken. True kings are made through dedication, teamwork, and an unshakable will.</p>
+            <p className="quote-text">Every gamer deserves a chance to shine. We are a collective dedicated to helping players and fans grow together.</p>
             <div className="quote-attr">YOU ESPORTS</div>
           </div>
         </div>
