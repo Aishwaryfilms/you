@@ -55,6 +55,18 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Supabase admin client (server-side).
+const { createClient } = require("@supabase/supabase-js");
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_KEY || "";
+let supabaseAdmin = null;
+if (SUPABASE_URL && SUPABASE_SERVICE_ROLE) {
+  supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
+    auth: { persistSession: false },
+  });
+} else {
+  console.warn("[admin-api] SUPABASE_URL or SUPABASE_SERVICE_ROLE not configured. Admin Supabase routes will be disabled.");
+}
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
@@ -100,6 +112,67 @@ function requireAdmin(req, res, next) {
 
 app.get("/api/admin/verify", requireAdmin, (_req, res) => {
   res.json({ ok: true });
+});
+
+// Supabase admin routes (require service role key)
+app.get("/api/admin/users", requireAdmin, async (_req, res) => {
+  if (!supabaseAdmin) return res.status(500).json({ message: "Supabase admin client not configured" });
+
+  try {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ users: data });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.get("/api/admin/posts", requireAdmin, async (_req, res) => {
+  if (!supabaseAdmin) return res.status(500).json({ message: "Supabase admin client not configured" });
+  try {
+    const { data, error } = await supabaseAdmin.from("posts").select("*");
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ posts: data });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.post("/api/admin/posts", requireAdmin, async (req, res) => {
+  if (!supabaseAdmin) return res.status(500).json({ message: "Supabase admin client not configured" });
+  const payload = req.body || {};
+  try {
+    const { data, error } = await supabaseAdmin.from("posts").insert([payload]);
+    if (error) return res.status(500).json({ error: error.message });
+    res.status(201).json({ post: data?.[0] });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.put("/api/admin/posts/:id", requireAdmin, async (req, res) => {
+  if (!supabaseAdmin) return res.status(500).json({ message: "Supabase admin client not configured" });
+  const id = req.params.id;
+  const payload = req.body || {};
+  try {
+    const { data, error } = await supabaseAdmin.from("posts").update(payload).eq("id", id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ post: data?.[0] });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+app.delete("/api/admin/posts/:id", requireAdmin, async (req, res) => {
+  if (!supabaseAdmin) return res.status(500).json({ message: "Supabase admin client not configured" });
+  const id = req.params.id;
+  try {
+    const { error } = await supabaseAdmin.from("posts").delete().eq("id", id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
 });
 
 if (fs.existsSync(FRONTEND_INDEX_FILE)) {
