@@ -141,37 +141,58 @@ Server-side admin credentials are configured in `.env.server`, not in frontend c
 
 ## Build and Deploy
 
-Create production build:
+### Frontend Deployment (GitHub Pages)
 
-```bash
-npm run build
-```
+The frontend is automatically built and deployed to GitHub Pages via `.github/workflows/deploy.yml`.
 
-Deploy the generated `dist/` folder to:
+**Setup:**
+1. Go to `Settings > Pages`
+2. Set `Source` to `GitHub Actions`
+3. Push to `main` — workflow runs automatically
 
-- Vercel
-- Netlify
-- Any static hosting provider
+Frontend deploys to: https://Aishwaryfilms.github.io/you
 
-### GitHub Pages (Important)
+### Backend Deployment (Admin API)
 
-This repo includes an automated workflow at `.github/workflows/deploy-pages.yml` that builds and deploys `dist`.
+The admin panel requires a Node.js backend server for authentication. Without it, admin login won't work on GitHub Pages (static-only).
 
-Use these settings in GitHub:
+**To deploy the backend:**
+- See [DEPLOYMENT.md](DEPLOYMENT.md) for complete step-by-step instructions.
+- TL;DR: Deploy to Render, Railway, or Heroku, then set GitHub secret `ADMIN_API_URL`.
 
-1. Go to `Settings -> Pages`
-2. Set `Source` to `GitHub Actions` (not `Deploy from branch`)
-3. Push to `main` and wait for the `Deploy GitHub Pages` workflow to finish
+### For Static-Only Hosting (without backend)
 
-If you deploy directly from the repository root, GitHub serves raw `src/main.jsx` (uncompiled JSX), which causes a white screen.
+If you only deploy the frontend without a backend server:
+- Admin login will **not work** on GitHub Pages.
+- Contact form will function normally.
+- To enable admin features, you **must** deploy backend (see DEPLOYMENT.md).
 
 ## Troubleshooting
 
-- If form submits but no email arrives, check spam/junk and confirm the destination address in `src/App.jsx`.
-- If admin login fails, verify `.env.server` exists and `npm run server` is running.
-- If you see `Admin API route not found`, either start/deploy backend API and set `VITE_ADMIN_API_URL`, or use static hash fallback values.
-- If you see Failed to fetch on admin login, start backend with `npm run server` and restart `npm run dev`.
-- If admin API is on another host/port, set `VITE_ADMIN_API_URL` in frontend env.
+- **Admin login says "Cannot reach admin server"**: 
+  - If on GitHub Pages: backend not deployed yet. See [DEPLOYMENT.md](DEPLOYMENT.md).
+  - If local Dev: Start backend with `npm run server` in another terminal.
+  - Check GitHub secret `ADMIN_API_URL` is set to your deployed backend.
+
+- **"Incorrect password. Try again."**: 
+  - Verify `.env.server` has correct `ADMIN_PASS_HASH`.
+  - Default password: `websitepass123!`
+
+- **Form submits but no email arrives**: 
+  - Check spam/junk folder.
+  - Verify destination email in `src/App.jsx` (`CONTACT_EMAIL`).
+
+- **"Incorrect password" even with correct password**: 
+  - Stop/restart `npm run server`.
+  - Ensure `.env.server` is not gitignored (check `.gitignore`).
+
+- **Supabase admin routes return 500 error**:
+  - Check `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE` set correctly on backend.
+  - Ensure service role key is used (not anon key).
+
+- **GitHub Actions deploy workflow fails**:
+  - Check workflow logs in GitHub repo > Actions tab.
+  - Verify `ADMIN_API_URL` GitHub secret is set for production builds.
 
 ## Notes
 
