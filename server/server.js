@@ -10,7 +10,7 @@ dotenv.config({ path: ".env.server" });
 dotenv.config();
 
 const app = express();
-const PORT = Number(process.env.ADMIN_API_PORT || 8787);
+const PORT = Number(process.env.PORT || process.env.ADMIN_API_PORT || 8787);
 const ADMIN_PASS_HASH = process.env.ADMIN_PASS_HASH || "";
 const ADMIN_PASS = process.env.ADMIN_PASS || "";
 const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "change-this-admin-jwt-secret";
